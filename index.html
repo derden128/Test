@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⛏️ Minecraft Server Status</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --mc-green: #55FF55;
+            --mc-dark-green: #00AA00;
+            --mc-red: #FF5555;
+            --mc-dark-red: #AA0000;
+            --mc-gold: #FFAA00;
+            --mc-yellow: #FFFF55;
+            --mc-aqua: #55FFFF;
+            --mc-white: #FFFFFF;
+            --mc-gray: #AAAAAA;
+            --mc-dark-gray: #555555;
+            --mc-black: #000000;
+            --dirt-primary: #8B5A2B;
+            --dirt-secondary: #6B4423;
+            --stone-primary: #7F7F7F;
+            --stone-secondary: #5F5F5F;
+            --obsidian: #1a1a2e;
+            --bedrock: #0d0d0d;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Press Start 2P', cursive;
+            background-color: var(--bedrock);
+            min-height: 100vh;
+            color: var(--mc-white);
+            overflow-x: hidden;
+        }
+
+        /* Minecraft Dirt Background Pattern */
+        .minecraft-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: 
+                repeating-linear-gradient(
+                    0deg,
+                    transparent,
+                    transparent 32px,
+                    rgba(0,0,0,0.1) 32px,
+                    rgba(0,0,0,0.1) 64px
+                ),
+                repeating-linear-gradient(
+                    90deg,
+                    transparent,
+                    transparent 32px,
+                    rgba(0,0,0,0.1) 32px,
+                    rgba(0,0,0,0.1) 64px
+                ),
+                linear-gradient(
+                    180deg,
+                    #3d2817 0%,
+                    #5c3d2e 20%,
+                    #6b4423 40%,
+                    #8B5A2B 60%,
+                    #6b4423 80%,
+                    #3d2817 100%
+                );
+            background-size: 64px 64px, 64px 64px, 100% 100%;
+            image-rendering: pixelated;
+        }
+
+        .minecraft-bg::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url("data:image/svg+xml,%3Csvg width='64' height='64' viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='16' height='16' x='0' y='0' fill='%23000' fill-opacity='0.1'/%3E%3Crect width='16' height='16' x='32' y='16' fill='%23000' fill-opacity='0.1'/%3E%3Crect width='16' height='16' x='16' y='32' fill='%23000' fill-opacity='0.05'/%3E%3Crect width='16' height='16' x='48' y='48' fill='%23000' fill-opacity='0.1'/%3E%3C/svg%3E");
+            opacity: 0.5;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 16px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 20px;
+            background: linear-gradient(180deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.5) 100%);
+            border: 4px solid var(--stone-primary);
+            border-radius: 0;
+            box-shadow: 
+                inset 0 0 0 2px var(--stone-secondary),
+                0 4px 0 var(--mc-black),
+                0 8px 16px rgba(0,0,0,0.5);
+            image-rendering: pixelated;
+        }
+
+        .header h1 {
+            font-size: 14px;
+            color: var(--mc-gold);
+            text-shadow: 
+                2px 2px 0 var(--mc-black),
+                -1px -1px 0 var(--mc-black),
+                1px -1px 0 var(--mc-black),
+                -1px 1px 0 var(--mc-black);
+            margin-bottom: 8px;
+            line-height: 1.6;
+        }
+
+        .header .subtitle {
+            font-size: 8px;
+            color: var(--mc-gray);
+        }
+
+        /* Status Card */
+        .status-card {
+            background: linear-gradient(180deg, rgba(20,20,20,0.95) 0%, rgba(10,10,10,0.98) 100%);
+            border: 4px solid var(--stone-primary);
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 
+                inset 0 0 0 2px var(--stone-secondary),
+                inset 0 0 20px rgba(0,0,0,0.5),
+                0 4px 0 var(--mc-black),
+                0 8px 16px rgba(0,0,0,0.5);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .status-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--mc-green), transparent);
+            opacity: 0.5;
+        }
+
+        /* Server Info Header */
+        .server-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid var(--stone-secondary);
+        }
+
+        .server-icon {
+            width: 64px;
+            height: 64px;
+            border: 3px solid var(--stone-primary);
+            box-shadow: 
+                inset 0 0 0 1px var(--stone-secondary),
+                0 2px 0 var(--mc-black);
+            image-rendering: pixelated;
+            background: var(--obsidian);
+            flex-shrink: 0;
+        }
+
+        .server-icon.placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .server-info {
+            flex-grow: 1;
+            min-width: 0;
+        }
+
+        .server-ip {
+            font-size: 10px;
+            color: var(--mc-aqua);
+            word-break: break-all;
+            text-shadow: 1px 1px 0 var(--mc-black);
+            margin-bottom: 8px;
+        }
+
+        /* Status Indicator */
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            font-size: 8px;
+            border: 2px solid;
+            box-shadow: 0 2px 0 var(--mc-black);
+        }
+
+        .status-indicator.online {
+            background: linear-gradient(180deg, var(--mc-dark-green) 0%, #006600 100%);
+            border-color: var(--mc-green);
+            color: var(--mc-green);
+        }
+
+        .status-indicator.offline {
+            background: linear-gradient(180deg, var(--mc-dark-red) 0%, #660000 100%);
+            border-color: var(--mc-red);
+            color: var(--mc-red);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 0;
+            animation: pulse 1.5s infinite;
+        }
+
+        .status-indicator.online .status-dot {
+            background: var(--mc-green);
+            box-shadow: 0 0 8px var(--mc-green);
+        }
+
+        .status-indicator.offline .status-dot {
+            background: var(--mc-red);
+            box-shadow: 0 0 8px var(--mc-red);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* MOTD */
+        .motd-container {
+            background: var(--mc-black);
+            border: 2px solid var(--stone-secondary);
+            padding: 12px;
+            margin-bottom: 16px;
+            min-height: 50px;
+        }
+
+        .motd-label {
+            font-size: 7px;
+            color: var(--mc-gray);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .motd-text {
+            font-size: 8px;
+            line-height: 1.8;
+            word-wrap: break-word;
+        }
+
+        /* Minecraft Color Classes */
+        .mc-0 { color: #000000; }
+        .mc-1 { color: #0000AA; }
+        .mc-2 { color: #00AA00; }
+        .mc-3 { color: #00AAAA; }
+        .mc-4 { color: #AA0000; }
+        .mc-5 { color: #AA00AA; }
+        .mc-6 { color: #FFAA00; }
+        .mc-7 { color: #AAAAAA; }
+        .mc-8 { color: #555555; }
+        .mc-9 { color: #5555FF; }
+        .mc-a { color: #55FF55; }
+        .mc-b { color: #55FFFF; }
+        .mc-c { color: #FF5555; }
+        .mc-d { color: #FF55FF; }
+        .mc-e { color: #FFFF55; }
+        .mc-f { color: #FFFFFF; }
+        .mc-l { font-weight: bold; }
+        .mc-o { font-style: italic; }
+        .mc-n { text-decoration: underline; }
+        .mc-m { text-decoration: line-through; }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .stat-box {
+            background: linear-gradient(180deg, var(--stone-secondary) 0%, var(--obsidian) 100%);
+            border: 2px solid var(--stone-primary);
+            padding: 12px;
+            text-align: center;
+            box-shadow: 
+                inset 0 1px 0 rgba(255,255,255,0.1),
+                0 2px 0 var(--mc-black);
+        }
+
+        .stat-label {
+            font-size: 6px;
+            color: var(--mc-gray);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+        }
+
+        .stat-value {
+            font-size: 12px;
+            color: var(--mc-white);
+            text-shadow: 1px 1px 0 var(--mc-black);
+        }
+
+        .stat-value.players {
+            color: var(--mc-green);
+        }
+
+        .stat-value.version {
+            color: var(--mc-aqua);
+            font-size: 9px;
+        }
+
+        /* Player List */
+        .players-section {
+            margin-top: 16px;
+        }
+
+        .players-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--stone-secondary);
+        }
+
+        .players-title {
+            font-size: 9px;
+            color: var(--mc-gold);
+            text-shadow: 1px 1px 0 var(--mc-black);
+        }
+
+        .players-count {
+            font-size: 8px;
+            color: var(--mc-green);
+        }
+
+        .players-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .player-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(0,0,0,0.5);
+            border: 1px solid var(--stone-secondary);
+            padding: 6px 10px;
+            font-size: 7px;
+            color: var(--mc-white);
+        }
+
+        .player-head {
+            width: 16px;
+            height: 16px;
+            image-rendering: pixelated;
+            border: 1px solid var(--stone-primary);
+        }
+
+        .no-players {
+            font-size: 8px;
+            color: var(--mc-gray);
+            font-style: italic;
+            text-align: center;
+            padding: 20px;
+        }
+
+        /* Loading State */
+        .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 20px;
+            text-align: center;
+        }
+
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid var(--stone-secondary);
+            border-top-color: var(--mc-green);
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 10px;
+            color: var(--mc-gray);
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50%, 100% { opacity: 1; }
+            25%, 75% { opacity: 0.5; }
+        }
+
+        /* Error State */
+        .error-container {
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .error-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .error-title {
+            font-size: 12px;
+            color: var(--mc-red);
+            margin-bottom: 12px;
+            text-shadow: 1px 1px 0 var(--mc-black);
+        }
+
+        .error-message {
+            font-size: 8px;
+            color: var(--mc-gray);
+            line-height: 1.8;
+        }
+
+        /* Refresh Button */
+        .refresh-section {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 2px solid var(--stone-secondary);
+        }
+
+        .mc-button {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 8px;
+            padding: 10px 16px;
+            background: linear-gradient(180deg, #4a4a4a 0%, #2d2d2d 50%, #1a1a1a 51%, #2d2d2d 100%);
+            border: 2px solid #5a5a5a;
+            color: var(--mc-white);
+            cursor: pointer;
+            box-shadow: 
+                inset 0 1px 0 rgba(255,255,255,0.2),
+                inset 0 -1px 0 rgba(0,0,0,0.5),
+                0 2px 0 #1a1a1a,
+                0 4px 8px rgba(0,0,0,0.3);
+            transition: all 0.1s;
+            text-shadow: 1px 1px 0 var(--mc-black);
+        }
+
+        .mc-button:hover {
+            background: linear-gradient(180deg, #5a5a5a 0%, #3d3d3d 50%, #2a2a2a 51%, #3d3d3d 100%);
+            border-color: #6a6a6a;
+        }
+
+        .mc-button:active {
+            transform: translateY(2px);
+            box-shadow: 
+                inset 0 1px 0 rgba(255,255,255,0.1),
+                inset 0 -1px 0 rgba(0,0,0,0.3),
+                0 0 0 #1a1a1a;
+        }
+
+        .mc-button.primary {
+            background: linear-gradient(180deg, #5b8731 0%, #3d5c21 50%, #2d4518 51%, #3d5c21 100%);
+            border-color: #6b9741;
+        }
+
+        .mc-button.primary:hover {
+            background: linear-gradient(180deg, #6b9741 0%, #4d6c31 50%, #3d5528 51%, #4d6c31 100%);
+            border-color: #7ba751;
+        }
+
+        .auto-refresh-status {
+            font-size: 7px;
+            color: var(--mc-gray);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .refresh-dot {
+            width: 6px;
+            height: 6px;
+            background: var(--mc-green);
+            animation: pulse 2s infinite;
+        }
+
+        /* Last Updated */
+        .last-updated {
+            font-size: 6px;
+            color: var(--mc-dark-gray);
+            text-align: center;
+            margin-top: 12px;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--obsidian);
+            border: 1px solid var(--stone-secondary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--stone-primary);
+            border: 1px solid var(--stone-secondary);
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--mc-gray);
+        }
+
+        /* Responsive */
+        @media (max-width: 400px) {
+            .header h1 {
+                font-size: 11px;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .server-header {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .server-icon {
+                margin: 0 auto;
+            }
+        }
+
+        /* Hidden */
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="minecraft-bg"></div>
+    
+    <div class="container">
+        <header class="header">
+            <h1>⛏️ MINECRAFT SERVER STATUS ⛏️</h1>
+            <div class="subtitle">Real-time monitoring</div>
+        </header>
+
+        <!-- Loading State -->
+        <div id="loading" class="status-card">
+            <div class="loading">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">Loading server data...</div>
+            </div>
+        </div>
+
+        <!-- Error State -->
+        <div id="error" class="status-card hidden">
+            <div class="error-container">
+                <div class="error-icon">❌</div>
+                <div class="error-title">Connection Failed</div>
+                <div class="error-message" id="error-message">Unable to fetch server status</div>
+            </div>
+        </div>
+
+        <!-- No Server IP State -->
+        <div id="no-server" class="status-card hidden">
+            <div class="error-container">
+                <div class="error-icon">⚠️</div>
+                <div class="error-title">No Server Specified</div>
+                <div class="error-message">Please use /setip command in the bot to set your Minecraft server IP first.</div>
+            </div>
+        </div>
+
+        <!-- Server Status -->
+        <div id="server-status" class="status-card hidden">
+            <div class="server-header">
+                <img id="server-icon" class="server-icon" alt="Server Icon" onerror="this.classList.add('placeholder'); this.src=''; this.innerHTML='🎮';">
+                <div class="server-info">
+                    <div class="server-ip" id="server-ip-display">-</div>
+                    <div id="status-indicator" class="status-indicator offline">
+                        <div class="status-dot"></div>
+                        <span id="status-text">OFFLINE</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="motd-container">
+                <div class="motd-label">📜 Message of the Day</div>
+                <div class="motd-text" id="motd">-</div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div class="stat-label">👥 Players</div>
+                    <div class="stat-value players" id="players-count">0 / 0</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">📦 Version</div>
+                    <div class="stat-value version" id="version">-</div>
+                </div>
+            </div>
+
+            <div class="players-section" id="players-section">
+                <div class="players-header">
+                    <div class="players-title">🎮 Online Players</div>
+                    <div class="players-count" id="online-count">0 online</div>
+                </div>
+                <div class="players-list" id="players-list">
+                    <div class="no-players">No player data available</div>
+                </div>
+            </div>
+
+            <div class="refresh-section">
+                <button class="mc-button primary" id="refresh-btn" onclick="fetchServerStatus()">
+                    🔄 REFRESH
+                </button>
+                <div class="auto-refresh-status">
+                    <div class="refresh-dot"></div>
+                    Auto-refresh: <span id="countdown">10</span>s
+                </div>
+            </div>
+
+            <div class="last-updated">
+                Last updated: <span id="last-updated">-</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Telegram WebApp
+        const tg = window.Telegram?.WebApp;
+        if (tg) {
+            tg.ready();
+            tg.expand();
+            // Apply Telegram theme if available
+            if (tg.themeParams?.bg_color) {
+                document.body.style.setProperty('--tg-bg', tg.themeParams.bg_color);
+            }
+        }
+
+        // Configuration
+        const API_BASE = 'https://api.mcsrvstat.us/2/';
+        const REFRESH_INTERVAL = 10000; // 10 seconds
+        let serverIP = null;
+        let refreshTimer = null;
+        let countdownTimer = null;
+        let countdown = 10;
+
+        // Minecraft color code mapping
+        const mcColors = {
+            '0': '#000000', '1': '#0000AA', '2': '#00AA00', '3': '#00AAAA',
+            '4': '#AA0000', '5': '#AA00AA', '6': '#FFAA00', '7': '#AAAAAA',
+            '8': '#555555', '9': '#5555FF', 'a': '#55FF55', 'b': '#55FFFF',
+            'c': '#FF5555', 'd': '#FF55FF', 'e': '#FFFF55', 'f': '#FFFFFF'
+        };
+
+        // Parse Minecraft color codes to HTML
+        function parseMinecraftColors(text) {
+            if (!text) return '';
+            
+            // Handle array of lines
+            if (Array.isArray(text)) {
+                text = text.join('<br>');
+            }
+
+            let result = '';
+            let currentColor = '#AAAAAA';
+            let isBold = false;
+            let isItalic = false;
+            let isUnderline = false;
+            let isStrikethrough = false;
+
+            const regex = /§([0-9a-fk-or])/gi;
+            let lastIndex = 0;
+            let match;
+
+            // Create a working copy
+            let workingText = text.replace(/\u00A7/g, '§');
+
+            while ((match = regex.exec(workingText)) !== null) {
+                // Add text before this code
+                if (match.index > lastIndex) {
+                    const segment = workingText.substring(lastIndex, match.index);
+                    let style = `color: ${currentColor};`;
+                    if (isBold) style += ' font-weight: bold;';
+                    if (isItalic) style += ' font-style: italic;';
+                    if (isUnderline) style += ' text-decoration: underline;';
+                    if (isStrikethrough) style += ' text-decoration: line-through;';
+                    result += `<span style="${style}">${escapeHtml(segment)}</span>`;
+                }
+
+                const code = match[1].toLowerCase();
+
+                // Handle formatting codes
+                if (mcColors[code]) {
+                    currentColor = mcColors[code];
+                } else if (code === 'l') {
+                    isBold = true;
+                } else if (code === 'o') {
+                    isItalic = true;
+                } else if (code === 'n') {
+                    isUnderline = true;
+                } else if (code === 'm') {
+                    isStrikethrough = true;
+                } else if (code === 'r') {
+                    // Reset
+                    currentColor = '#AAAAAA';
+                    isBold = false;
+                    isItalic = false;
+                    isUnderline = false;
+                    isStrikethrough = false;
+                }
+                // 'k' (obfuscated) is ignored
+
+                lastIndex = regex.lastIndex;
+            }
+
+            // Add remaining text
+            if (lastIndex < workingText.length) {
+                const segment = workingText.substring(lastIndex);
+                let style = `color: ${currentColor};`;
+                if (isBold) style += ' font-weight: bold;';
+                if (isItalic) style += ' font-style: italic;';
+                if (isUnderline) style += ' text-decoration: underline;';
+                if (isStrikethrough) style += ' text-decoration: line-through;';
+                result += `<span style="${style}">${escapeHtml(segment)}</span>`;
+            }
+
+            return result || escapeHtml(text);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Get server IP from URL parameters
+        function getServerIP() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('server_ip');
+        }
+
+        // Show/hide elements
+        function showElement(id) {
+            document.getElementById(id).classList.remove('hidden');
+        }
+
+        function hideElement(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        // Update countdown display
+        function updateCountdown() {
+            countdown--;
+            if (countdown <= 0) {
+                countdown = 10;
+            }
+            document.getElementById('countdown').textContent = countdown;
+        }
+
+        // Fetch server status
+        async function fetchServerStatus() {
+            if (!serverIP) return;
+
+            const refreshBtn = document.getElementById('refresh-btn');
+            refreshBtn.disabled = true;
+            refreshBtn.textContent = '⏳ LOADING...';
+
+            try {
+                const response = await fetch(`${API_BASE}${encodeURIComponent(serverIP)}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                displayServerStatus(data);
+
+                hideElement('loading');
+                hideElement('error');
+                hideElement('no-server');
+                showElement('server-status');
+
+            } catch (error) {
+                console.error('Error fetching server status:', error);
+                
+                hideElement('loading');
+                hideElement('server-status');
+                hideElement('no-server');
+                showElement('error');
+                
+                document.getElementById('error-message').textContent = 
+                    `Failed to connect: ${error.message}`;
+            } finally {
+                refreshBtn.disabled = false;
+                refreshBtn.textContent = '🔄 REFRESH';
+                countdown = 10;
+            }
+        }
+
+        // Display server status
+        function displayServerStatus(data) {
+            // Server IP
+            document.getElementById('server-ip-display').textContent = serverIP;
+
+            // Online/Offline status
+            const statusIndicator = document.getElementById('status-indicator');
+            const statusText = document.getElementById('status-text');
+            
+            if (data.online) {
+                statusIndicator.classList.remove('offline');
+                statusIndicator.classList.add('online');
+                statusText.textContent = 'ONLINE';
+            } else {
+                statusIndicator.classList.remove('online');
+                statusIndicator.classList.add('offline');
+                statusText.textContent = 'OFFLINE';
+            }
+
+            // Server icon
+            const iconEl = document.getElementById('server-icon');
+            if (data.icon) {
+                iconEl.src = data.icon;
+                iconEl.classList.remove('placeholder');
+            } else {
+                iconEl.src = '';
+                iconEl.classList.add('placeholder');
+                iconEl.alt = '🎮';
+            }
+
+            // MOTD
+            const motdEl = document.getElementById('motd');
+            if (data.motd) {
+                // Use raw MOTD with color codes, or clean version
+                if (data.motd.raw && data.motd.raw.length > 0) {
+                    motdEl.innerHTML = parseMinecraftColors(data.motd.raw);
+                } else if (data.motd.clean && data.motd.clean.length > 0) {
+                    motdEl.textContent = data.motd.clean.join('\n');
+                } else if (data.motd.html && data.motd.html.length > 0) {
+                    motdEl.innerHTML = data.motd.html.join('<br>');
+                } else {
+                    motdEl.textContent = 'No MOTD available';
+                }
+            } else {
+                motdEl.textContent = 'No MOTD available';
+            }
+
+            // Players count
+            const playersOnline = data.players?.online || 0;
+            const playersMax = data.players?.max || 0;
+            document.getElementById('players-count').textContent = `${playersOnline} / ${playersMax}`;
+            document.getElementById('online-count').textContent = `${playersOnline} online`;
+
+            // Version
+            const versionEl = document.getElementById('version');
+            if (data.version) {
+                versionEl.textContent = data.version;
+            } else if (data.protocol?.name) {
+                versionEl.textContent = data.protocol.name;
+            } else {
+                versionEl.textContent = 'Unknown';
+            }
+
+            // Player list
+            const playersListEl = document.getElementById('players-list');
+            if (data.players?.list && data.players.list.length > 0) {
+                playersListEl.innerHTML = data.players.list.map(player => {
+                    const playerName = typeof player === 'string' ? player : player.name || 'Unknown';
+                    const uuid = typeof player === 'object' ? player.uuid : null;
+                    const headUrl = uuid 
+                        ? `https://crafatar.com/avatars/${uuid}?size=16&overlay`
+                        : `https://minotar.net/avatar/${encodeURIComponent(playerName)}/16`;
+                    
+                    return `
+                        <div class="player-item">
+                            <img class="player-head" src="${headUrl}" alt="${escapeHtml(playerName)}" 
+                                 onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><rect fill=%22%23888%22 width=%2216%22 height=%2216%22/></svg>'">
+                            <span>${escapeHtml(playerName)}</span>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                playersListEl.innerHTML = '<div class="no-players">No player data available</div>';
+            }
+
+            // Last updated
+            const now = new Date();
+            document.getElementById('last-updated').textContent = now.toLocaleTimeString();
+        }
+
+        // Start auto-refresh
+        function startAutoRefresh() {
+            if (refreshTimer) clearInterval(refreshTimer);
+            if (countdownTimer) clearInterval(countdownTimer);
+
+            refreshTimer = setInterval(fetchServerStatus, REFRESH_INTERVAL);
+            countdownTimer = setInterval(updateCountdown, 1000);
+        }
+
+        // Initialize
+        function init() {
+            serverIP = getServerIP();
+
+            if (!serverIP) {
+                hideElement('loading');
+                showElement('no-server');
+                return;
+            }
+
+            fetchServerStatus();
+            startAutoRefresh();
+        }
+
+        // Start the app
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
